@@ -20,9 +20,9 @@ connect _ = []
 
 split :: (Eq a) => [a] -> a -> [[a]]
 split xs sep 
-    | null xs = []
     | (elem sep xs) = (takeWhile (/= sep) xs) : 
                       (split (tail (dropWhile (/= sep) xs)) sep)
+    | null xs = []
     | otherwise = [xs]
 
 trim :: String -> String

@@ -1,8 +1,7 @@
-import qualified Data.List as List
+import System.Environment
 import Debug.Trace
 
-import Util
-
+import qualified Util as Util
 import qualified Graph as Graph
 import qualified XML as XML
 
@@ -34,11 +33,11 @@ data Fingerprint = Fingerprint { id :: String,
 compare :: Expression -> Expression -> Bool
 compare (Literal x) (Literal y) = x == y
 compare (Literal x) (Range a b) = a <= n && n <= b
-    where n = hexToInt x
+    where n = Util.hexToInt x
 compare (Literal x) (LessThan y) = n < y
-    where n = hexToInt x
+    where n = Util.hexToInt x
 compare (Literal x) (GreaterThan y) = n > y
-    where n = hexToInt x
+    where n = Util.hexToInt x
 compare (GreaterThan x) (Literal y) = Main.compare (Literal y) 
                                                    (GreaterThan x)
 compare (GreaterThan x) (Range a b) = x >= a
@@ -75,7 +74,7 @@ similarity (Fingerprint _ _ (ResponseMap a))
           compareTestMaps [] _ = 0.0
           compareExpressionLists xs ys 
             | or $ map (\x -> Main.compare (fst x) (snd x)) 
-                       (join xs ys) = 1.0
+                       (Util.join xs ys) = 1.0
             | otherwise = 0.0
 
 distance :: Fingerprint -> Fingerprint -> Float
@@ -89,7 +88,7 @@ sections token (x:xs) state current output
     -- entering section:
     | (state == 0) && 
       (not (null x)) &&
-      (beginsWith token x) = sections token xs 1 (current ++ [x]) output
+      (Util.beginsWith token x) = sections token xs 1 (current ++ [x]) output
     -- inside section:
     | (state == 1) &&
       (not (null x)) = sections token xs state (current ++ [x]) output 
@@ -103,15 +102,15 @@ sections token [] state current output = (output ++ [current])
 parse :: [String] -> String -> [Class] -> [(String, TestMap)] -> Fingerprint
 parse (x:xs) id classes responses
     -- XXX ignore CPE lines
-    | (beginsWith "CPE " x) = parse xs id classes responses
-    | (beginsWith fp x) = parse xs (drop (length fp) x) classes responses
-    | (beginsWith cls x) = parse xs id (classes ++ [parseClass x]) responses
+    | (Util.beginsWith "CPE " x) = parse xs id classes responses
+    | (Util.beginsWith fp x) = parse xs (drop (length fp) x) classes responses
+    | (Util.beginsWith cls x) = parse xs id (classes ++ [parseClass x]) responses
     | otherwise = parse xs id classes (responses ++ [parseResponse x])
     where fp = "Fingerprint "
           cls = "Class "
           parseClass x 
-            | (beginsWith cls x) = parseClass (drop (length cls) x)
-            | otherwise = let tokens = map trim $ split x '|' 
+            | (Util.beginsWith cls x) = parseClass (drop (length cls) x)
+            | otherwise = let tokens = map Util.trim $ Util.split x '|' 
                           in Class (tokens !! 0)
                                    (tokens !! 1)
                                    (tokens !! 2)
@@ -121,18 +120,18 @@ parse (x:xs) id classes responses
                              TestMap (parseTests $ takeWhile (/= ')') 
                                                  $ tail 
                                                  $ dropWhile (/= '(') x))
-          parseTests x = map parseTest $ split x '%'
+          parseTests x = map parseTest $ Util.split x '%'
           parseTest x 
-            | otherwise = let pair = split x '=' 
+            | otherwise = let pair = Util.split x '=' 
                         in (pair !! 0, parseExpressions (pair !! 0))
-          parseExpressions x = map parseExpression $ split x '|'
+          parseExpressions x = map parseExpression $ Util.split x '|'
           parseExpression x
             | null x = Literal ""
-            | '-' `elem` x = let r = split x '-'
-                             in Range (hexToInt (r !! 0))
-                                      (hexToInt (r !! 1))
-            | '>' == (head x) = GreaterThan $ hexToInt $ tail x
-            | '<' == (head x) = LessThan $ hexToInt $ tail x
+            | '-' `elem` x = let r = Util.split x '-'
+                             in Range (Util.hexToInt (r !! 0))
+                                      (Util.hexToInt (r !! 1))
+            | '>' == (head x) = GreaterThan $ Util.hexToInt $ tail x
+            | '<' == (head x) = LessThan $ Util.hexToInt $ tail x
             | otherwise = Literal x
 parse [] id classes responses = Fingerprint id classes (ResponseMap responses)
 
@@ -156,12 +155,12 @@ edge a b = Graph.Edge Graph.NonDirected (number a) (number b) []
 
 edges :: [[(Int, a)]] -> [Graph.Statement]
 edges xs = 
-    foldr (\x a -> map (\y -> edge (fst y) (snd y)) (connect x) ++ a) [] xs
+    foldr (\x a -> map (\y -> edge (fst y) (snd y)) (Util.connect x) ++ a) [] xs
 
 color :: Int -> Int -> Int -> Graph.Attribute
-color red green blue = Graph.Color ("#" ++ (fixed (toHexa red) 2) ++
-                                           (fixed (toHexa green) 2) ++
-                                           (fixed (toHexa blue) 2))
+color red green blue = Graph.Color ("#" ++ (Util.fixed (Util.toHexa red) 2) ++
+                                           (Util.fixed (Util.toHexa green) 2) ++
+                                           (Util.fixed (Util.toHexa blue) 2))
 
 clusters :: [[(Int, Fingerprint)]] -> Int -> Int -> [Graph.Statement]
 clusters (x:xs) n max
@@ -210,11 +209,15 @@ groupBy _ [] = []
 groupBy eq (x:xs) = (x:ys) : groupBy eq zs
   where (ys,zs) = span (eq x) xs
 
-main' input = show $ graph groups 
+buildGraph input threshold = (length groups, graph groups)
     where groups = groupBy 
                         (\a b -> (distance (snd a) (snd b)) < threshold) 
                         list
           list = zip [0..] $ fingerprints $ lines input
-          threshold = 25
 
-main = interact main'
+main = do
+        (filename:threshold:output:_) <- getArgs
+        database <- readFile filename
+        let (count, graph) = buildGraph database (read threshold :: Float)
+        writeFile output (show graph)
+        putStrLn $ "Clusters count: " ++ (show count)
