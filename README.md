@@ -15,7 +15,7 @@ To install graphviz:
  * Mac OS X (Macports): `sudo port install graphviz`
  * Ubuntu: `sudo apt-get install graphviz`
 
-### Sample:
+### Sample
 
     $ time runhaskell clusters.hs /opt/local/share/nmap/nmap-os-db 17 output.gv
 	Clusters count: 156
@@ -24,7 +24,7 @@ To install graphviz:
 	user	0m6.541s
 	sys	0m0.218s
 
-    $ time fdp -Tpng -o output.png output.gv 
+    $ time fdp -Tsvgz -o output.svgz output.gv 
 
 	real	0m17.829s
 	user	0m17.511s
@@ -32,4 +32,4 @@ To install graphviz:
 
 Generated graph:
 
-![Sample graph](nmap-os-db-analyzer/raw/master/sample.png)
+![Sample graph](nmap-os-db-analyzer/raw/master/sample.svgz)
