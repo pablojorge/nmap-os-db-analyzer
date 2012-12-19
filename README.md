@@ -32,4 +32,4 @@ To install graphviz:
 
 Generated graph:
 
-![Sample graph](nmap-os-db-analyzer/raw/master/sample.svgz)
+![Sample graph](nmap-os-db-analyzer/raw/master/sample.png)
